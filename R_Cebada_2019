@@ -1,0 +1,224 @@
+#####  #####   ####    ##      ####   ##
+#####  ##      #  #    ###     ## ##  ###
+##     ####    ###     # ##    ##  #  # ##
+##     ####    ###     #####   ## ##  #####
+#####  ##      #  #    #  ###  ####   #  ###
+#####  #####   ###     #   ### ###    #   ###
+
+####### Librerias a utilizar
+library(BBmisc)
+library(car)
+library(dbplyr)
+library(Hmisc)
+library(RcmdrMisc)
+library(corrplot)
+library(agricolae)
+library(tree)
+
+
+##############################################
+###Analsis exploratorio######################
+############################################
+
+###cargo los datos (esta es la direccion de MIPC, todavia no se cargarlos en la nube de r)
+
+#Todos los datos
+Cebada <- readXL("C:/MEGA/Adan/IHLLA/Datos e información/Cebada/R_Cebada.xlsx", rownames=FALSE, header=TRUE, na="", sheet="R", stringsAsFactors=TRUE)
+na.omit(Cebada)
+str(Cebada)
+View(Cebada2)
+
+
+##comandos utiles para graficar
+par(mfrow=c(1,1))
+
+##Histogramas y tests de normalidad
+with(Cebada, hist(ETa3, scale="frequency", breaks=20, col="darkgray", xlab="mm", main="ETa3"))
+shapiro.test(Cebada$ETa3)
+with(Cebada, hist(ETa2, scale="frequency", breaks=20, col="darkgray", xlab="mm", main="ETa2"))
+shapiro.test(Cebada$ETa2)
+with(Cebada, hist(ETa1, scale="frequency", breaks=20, col="darkgray", xlab="mm", main="ETa1"))
+shapiro.test(Cebada$ETa1)
+
+
+
+##########  Box plots
+#ETa
+Boxplot( ~ ETa3, data=Cebada, id=list(method="y"), ylab="mm", main="ETa")
+Boxplot( ~ ETa2, data=Cebada, id=list(method="y"), ylab="mm", main="ETa")
+Boxplot( ~ ETa1, data=Cebada, id=list(method="y"), ylab="mm", main="ETa")
+Boxplot( ~ ETbe3, data=Cebada, id=list(method="y"), ylab="mm", main="ETbe")
+Boxplot( ~ ETbe2, data=Cebada, id=list(method="y"), ylab="mm", main="ETbe")
+Boxplot( ~ ETbe1, data=Cebada, id=list(method="y"), ylab="mm", main="ETbe")
+Boxplot( ~ ETpm3, data=Cebada, id=list(method="y"), ylab="mm", main="ETpm")
+Boxplot( ~ Etpm2, data=Cebada, id=list(method="y"), ylab="mm", main="ETpm")
+Boxplot( ~ ETpm1, data=Cebada, id=list(method="y"), ylab="mm", main="ETpm")
+Boxplot( ~ ETpt3, data=Cebada, id=list(method="y"), ylab="mm", main="ETpt")
+Boxplot( ~ Etpt2, data=Cebada, id=list(method="y"), ylab="mm", main="ETpt")
+Boxplot( ~ ETpt1, data=Cebada, id=list(method="y"), ylab="mm", main="ETpt")
+
+###### Correlaciones
+coreta<-round(cor(Cebada[,c(5:30,32:45)],method = ("spearman")),2)
+corrplot(as.matrix(coreta), method="number")
+pairs(Cebada)
+pairs(Cebada[,c(5:20)])
+pairs(Cebada[,c(5,21:40)])
+rcorr(as.matrix(coreta), type=c("pearson","spearman")) 
+
+#ahora estandarizamos los datos
+
+estand<-function(data, a, b)
+{
+  data$id<-as.numeric(rownames(data)) # asigno un identificador a la base original
+  hola<-scale(data[,a:b], center=T, scale=T) # centro las variables
+  hola2<-data.frame(hola) # convierto las columnas con las variables centradas en un data frame
+  colnames(hola2)<-paste(names(hola2),"s", sep="") # le cambio los nombres a las columnas
+  id<-as.numeric(rownames(hola2)) # genero el mismo identificador que a la base original
+  hola3<-cbind(hola2, id) # uno el identificador con las columnas centradas
+  basenueva<-merge(data, hola3, by="id") # junto ambos data frames a trav??s del id que gener??
+  return(basenueva)
+}
+cebadastand<-estand(Cebada, 6, 59)
+str(cebadastand)
+View(cebadastand)
+
+###### Correlaciones estandarizadas
+coretas<-round(cor(cebadastand[,c(63:100)],method = ("spearman")),2)
+corrplot(as.matrix(coretas), method="number")
+pairs(Cebada)
+pairs(cebadastand[,c(5,63:73)])
+pairs(Cebada[,c(5,21:40)])
+rcorr(as.matrix(coreta), type=c("pearson","spearman"))
+
+###### Normalizo los datos (x-min)/(max-min)
+
+normal<-function(data, a, b)
+{
+  data$id<-as.numeric(rownames(data)) # asigno un identificador a la base original
+  hola<-normalize((data[,a:b]), method = "range", range = c(0, 1), margin = 1L, on.constant = "quiet") # normalizo las variables
+  hola2<-data.frame(hola) # convierto las columnas con las variables centradas en un data frame
+  colnames(hola2)<-paste(names(hola2),"n", sep="") # le cambio los nombres a las columnas
+  id<-as.numeric(rownames(hola2)) # genero el mismo identificador que a la base original
+  hola3<-cbind(hola2, id) # uno el identificador con las columnas centradas
+  basenueva<-merge(data, hola3, by="id") # junto ambos data frames a trav??s del id que gener??
+  return(basenueva)
+}
+cebadanorm<-normal(Cebada, 6, 59)
+str(cebadanorm)
+View(cebadanorm)
+
+############## Correlaciones normalizadas
+cornorm<-round(cor(cebadanorm[,c(63:100)],method = ("spearman")),2)
+corrplot(as.matrix(cornorm), method="number")
+pairs(Cebada)
+pairs(cebadastand[,c(5,63:73)])
+pairs(Cebada[,c(5,21:40)])
+rcorr(as.matrix(coreta), type=c("pearson","spearman"))
+
+#Datos post analisis exploratorio. Aca se eliminaron las variables linealmente dependientes
+Cebada2 <- readXL("C:/MEGA/Adan/IHLLA/Datos e información/Cebada/R_Cebada.xlsx", rownames=FALSE, header=TRUE, na="", sheet="R_2", stringsAsFactors=TRUE)
+str(Cebada2)
+summary(Cebada2)
+View(Cebada2)
+# Correlaciones
+cornorm<-round(cor(Cebada2[,c(3:14)],method = ("spearman")),2)
+corrplot(as.matrix(cornorm), method="number")
+pairs(Cebada2)
+ggpairs(Cebada2[,c(3:14)])
+rcorr(as.matrix(cornorm), type=c("pearson","spearman"))
+
+
+###############con las variables definidas empiezo a modelar
+##Hacercuadrados de las variables y ver su explicación
+
+##tree
+arbol<-tree(ETa3~NDVI+T_5cm+SWUpper_Avg+LWUpperCo_Avg+DP+Ta_2m+RH_2M+WS_ms_2M_Avg+Trad.Ta+Gcorregido, Cebada2)
+arbol<-tree(ETa3~SWUpper_Avg+Ta_2m+RH_2M+WS_ms_2M_Avg, Cebada2)
+
+summary(arbol)
+plot(arbol)
+text(arbol)
+
+#####################################################
+#Empiezo con los GLM (Modelos lineales generalizados)
+#####################################################
+
+#####Procedimiento hacia ADELANTE (forward):  La selección comienza a partir del modelo más simple
+#que se desee considerar (una  constante o tal vez la inclusión de una variable importante por
+# fundamentos teóricos). El  modelo de inicio se especifica en el primer comando, y el scope (hasta 
+#dónde seguir  incluyendo) se especifica a continuación.  
+
+#Voy a probar con los GLM automaticos. En inicio voy a arrancar con Temp aire, radiacion entrante y humed rel., consideradas
+
+#####
+#Empiezo el modelo con la temperatura del aire a 2m
+#Datos basicos ("base"); 1=distribucion gaussian; 2=Distri. gamma
+step(glm(ETa3~Ta_2m, data= Cebada2, family=gaussian(link="identity")), scope= ETa3~SWUpper_Avg+Ta_2m+RH_2M+WS_ms_2M_Avg, direction= "forward")
+step(glm(ETa3~Ta_2m, data= Cebada2, family=Gamma(inverse)), scope= ETa3~SWUpper_Avg+Ta_2m+RH_2M+WS_ms_2M_Avg, direction= "forward")
+
+#Todos los datos ("comp"); 1=distribucion gaussian; 2=Distri. gamma
+step(glm(ETa3~Ta_2m, data= Cebada2, family=gaussian(link="identity")), scope= ETa3~NDVI+T_5cm+SWUpper_Avg+LWUpperCo_Avg+DP+Ta_2m+RH_2M+WS_ms_2M_Avg+Trad.Ta+Gcorregido, direction= "forward")
+step(glm(ETa3~Ta_2m, data= Cebada2, family=Gamma(inverse)), scope= ETa3~NDVI+SWUpper_Avg+LWUpperCo_Avg+DP+Ta_2m+RH_2M+WS_ms_2M_Avg+Trad.Ta, direction= "forward")
+
+#GLM conseguidos en el paso anterior (mejor AIC)
+GLMbase1<-glm(formula = ETa3 ~ Ta_2m + RH_2M + SWUpper_Avg, family = gaussian(link = "identity") , data = Cebada2)
+GLMbase2<-glm(formula = ETa3 ~ Ta_2m + RH_2M + SWUpper_Avg, family=Gamma(link=inverse) , data = Cebada2)
+
+GLMcomp1<-glm(formula = ETa3 ~ Ta_2m + NDVI + Gcorregido + SWUpper_Avg + DP + T_5cm, family = gaussian(link = "identity"), data = Cebada2)
+GLMcomp2<-glm(formula = ETa3 ~ Ta_2m + NDVI + DP + SWUpper_Avg, family = Gamma(inverse), data = Cebada2)
+GLMcomp3<-glm(formula = ETa3 ~ Ta_2m + NDVI + Gcorregido + SWUpper_Avg + DP , family = gaussian(link = "identity"), data = Cebada2)
+
+#Verificación del modelo base (usar GLMbase1 o GLMbase2)
+
+vif(GLMbase1)
+summary(GLMbase1)
+qqnorm(resid(GLMbase2))
+plot(GLMbase1)
+  shapiro.test(resid(GLMbase1))
+anova(GLMbase)  
+Anova(GLMbase)
+
+#Verificación del modelo completo
+vif(GLMcomp2)
+summary(GLMcomp2)
+qqnorm(resid(GLMcomp2))
+
+plot(GLMcomp3)
+shapiro.test(resid(GLMcomp1))
+anova(GLMcomp2)  
+Anova(GLMcomp2)
+
+#####
+#Empiezo el modelo con la radiacion entrante
+step(glm(ETa3~SWUpper_Avg, data= Cebada2, family=gaussian(link="identity")), scope= ETa3~SWUpper_Avg+Ta_2m+RH_2M+WS_ms_2M_Avg, direction= "forward")
+
+step(glm(ETa3~SWUpper_Avg, data= Cebada2, family=gaussian(link="identity")), scope= ETa3~NDVI+T_5cm+SWUpper_Avg+LWUpperCo_Avg+DP+Ta_2m+RH_2M+WS_ms_2M_Avg+Trad.Ta+Gcorregido, direction= "forward")
+
+#####
+#Empiezo el modelo con la humedad relativa
+step(glm(ETa3~RH_2M, data= Cebada2, family=gaussian(link="identity")), scope= ETa3~SWUpper_Avg+Ta_2m+RH_2M+WS_ms_2M_Avg, direction= "forward")
+
+step(glm(ETa3~RH_2M, data= Cebada2, family=gaussian(link="identity")), scope= ETa3~NDVI+T_5cm+SWUpper_Avg+LWUpperCo_Avg+DP+Ta_2m+RH_2M+WS_ms_2M_Avg+Trad.Ta+Gcorregido, direction= "forward")
+
+
+#####
+#Por medio de la verificación del modelo se observo que la temperatura del
+#aire y la temperatura del suelo son variables dependientes, por lo tanto
+#se saco la temp. del suelo (Ta_5cm). Con este paso los modelos cumplen la 
+#mayoría de los supuestos
+
+#Ahora agregamos los datos predichos a la base de datos
+#ETreal= GLMbase1 (gaussian)
+Cebada2$GLMbase1<-predict(GLMbase1, type="response")
+
+#ETreal= GLMbase2 (gamma)
+Cebada2$GLMbase2<-predict(GLMbase2, type="response")
+
+#ETreal= GLMcomp1 (gaussian) 
+Cebada2$GLMcomp1<-predict(GLMcomp3, type="response")
+
+#ETreal= GLMcomp2 (gamma)
+Cebada2$GLMcomp2<-predict(GLMcomp2, type="response")
+
+#ETreal= GLMcomp1 (gaussian) con temperatura del suelo
+Cebada2$GLMcomp3<-predict(GLMcomp1, type="response")
